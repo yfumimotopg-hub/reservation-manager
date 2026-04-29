@@ -5,3 +5,6 @@ SQLAlchemy
 asyncmy
 cryptography
 email-validator
+pytest
+pytest-asyncio
+httpx

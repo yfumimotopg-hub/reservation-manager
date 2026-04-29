@@ -72,3 +72,19 @@ def update_user(
         user_id=user_id,
         user_update=user_update,
     )
+
+
+@router.delete("/{user_id}", response_model=UserResponse)
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """
+    ユーザーを無効化するAPIエンドポイント。
+
+    DBから物理削除せず、is_activeをFalseに更新する。
+    """
+    return UserService.deactivate_user(
+        db=db,
+        user_id=user_id,
+    )

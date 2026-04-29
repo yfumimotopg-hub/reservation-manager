@@ -105,6 +105,28 @@ class UserRepository:
         return user
 
     @staticmethod
+    def deactivate(db: Session, user: User) -> User:
+        """
+        ユーザーを無効化する。
+
+        物理削除は行わず、is_activeをFalseに更新することで
+        過去データとの紐づきを維持する。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            user: 無効化対象のユーザー。
+
+        Returns:
+            無効化後のユーザー情報。
+        """
+        user.is_active = False
+
+        db.commit()
+        db.refresh(user)
+
+        return user
+
+    @staticmethod
     def create_initial_users(db: Session) -> None:
         """
         初期表示確認用のユーザーデータを作成する。

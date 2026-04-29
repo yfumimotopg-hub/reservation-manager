@@ -134,6 +134,40 @@ class UserService:
         )
 
     @staticmethod
+    def deactivate_user(db: Session, user_id: int) -> User:
+        """
+        指定されたIDのユーザーを無効化する。
+
+        物理削除ではなくis_activeをFalseに更新する。
+        既に無効化されているユーザーの場合は409エラーを返す。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            user_id: 無効化対象のユーザーID。
+
+        Returns:
+            無効化後のユーザー情報。
+
+        Raises:
+            HTTPException: ユーザーが存在しない場合、または既に無効化済みの場合。
+        """
+        user = UserService.get_user(
+            db=db,
+            user_id=user_id,
+        )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="User is already inactive",
+            )
+
+        return UserRepository.deactivate(
+            db=db,
+            user=user,
+        )
+
+    @staticmethod
     def create_initial_users(db: Session) -> None:
         """
         開発環境用の初期ユーザーデータを作成する。

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.schemas.user import UserCreateRequest
+from app.schemas.user import UserCreateRequest, UserUpdateRequest
 
 
 class UserRepository:
@@ -23,6 +23,20 @@ class UserRepository:
             ユーザー情報の一覧。
         """
         return db.query(User).order_by(User.id).all()
+
+    @staticmethod
+    def find_by_id(db: Session, user_id: int) -> User | None:
+        """
+        ユーザーIDを条件にユーザーを1件取得する。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            user_id: 検索対象のユーザーID。
+
+        Returns:
+            該当するユーザー。存在しない場合はNone。
+        """
+        return db.query(User).filter(User.id == user_id).first()
 
     @staticmethod
     def find_by_email(db: Session, email: str) -> User | None:
@@ -58,6 +72,33 @@ class UserRepository:
         )
 
         db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return user
+
+    @staticmethod
+    def update(
+        db: Session,
+        user: User,
+        user_update: UserUpdateRequest,
+    ) -> User:
+        """
+        既存ユーザー情報を更新する。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            user: 更新対象のユーザー。
+            user_update: ユーザー更新リクエスト。
+
+        Returns:
+            更新後のユーザー情報。
+        """
+        user.name = user_update.name
+        user.email = user_update.email
+        user.role = user_update.role
+        user.is_active = user_update.is_active
+
         db.commit()
         db.refresh(user)
 

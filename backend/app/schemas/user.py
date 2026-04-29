@@ -27,6 +27,36 @@ class UserCreateRequest(BaseModel):
     )
 
 
+class UserUpdateRequest(BaseModel):
+    """
+    ユーザー更新APIのリクエストスキーマ。
+
+    既存ユーザーの名前、メールアドレス、権限、有効状態を更新するための
+    入力項目とバリデーションルールを定義する。
+    """
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="ユーザー名",
+    )
+    email: EmailStr = Field(
+        ...,
+        description="メールアドレス",
+    )
+    role: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="ユーザー権限",
+    )
+    is_active: bool = Field(
+        ...,
+        description="有効ユーザーかどうか",
+    )
+
+
 class UserResponse(BaseModel):
     """
     ユーザー情報を返却するためのレスポンススキーマ。

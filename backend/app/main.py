@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
 from app.models.meeting_room import MeetingRoom
+from app.models.reservation import Reservation
 from app.models.user import User
 from app.services.meeting_room_service import MeetingRoomService
 from app.services.user_service import UserService

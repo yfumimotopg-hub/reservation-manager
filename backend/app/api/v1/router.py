@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import database, health, meeting_rooms, users
+from app.api.v1.endpoints import database, health, meeting_rooms, reservations, users
 
 router = APIRouter()
 
@@ -26,4 +26,10 @@ router.include_router(
     meeting_rooms.router,
     prefix="/meeting-rooms",
     tags=["meeting-rooms"],
+)
+
+router.include_router(
+    reservations.router,
+    prefix="/reservations",
+    tags=["reservations"],
 )

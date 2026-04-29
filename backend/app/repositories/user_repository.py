@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
@@ -8,57 +9,70 @@ class UserRepository:
     """
     ユーザー情報に関するDB操作を担当するリポジトリ。
 
-    SQLAlchemyを使用した検索・登録・更新・削除などのDBアクセス処理を集約する。
+    SQLAlchemyのAsyncSessionを使用し、非同期で検索・登録・更新・無効化などの
+    DBアクセス処理を行う。
     """
 
     @staticmethod
-    def find_all(db: Session) -> list[User]:
+    async def find_all(db: AsyncSession) -> list[User]:
         """
-        登録されている全ユーザーを取得する。
+        登録されている全ユーザーを非同期で取得する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
 
         Returns:
             ユーザー情報の一覧。
         """
-        return db.query(User).order_by(User.id).all()
+        result = await db.execute(
+            select(User).order_by(User.id)
+        )
+        return list(result.scalars().all())
 
     @staticmethod
-    def find_by_id(db: Session, user_id: int) -> User | None:
+    async def find_by_id(db: AsyncSession, user_id: int) -> User | None:
         """
-        ユーザーIDを条件にユーザーを1件取得する。
+        ユーザーIDを条件にユーザーを1件非同期で取得する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_id: 検索対象のユーザーID。
 
         Returns:
             該当するユーザー。存在しない場合はNone。
         """
-        return db.query(User).filter(User.id == user_id).first()
+        result = await db.execute(
+            select(User).where(User.id == user_id)
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def find_by_email(db: Session, email: str) -> User | None:
+    async def find_by_email(db: AsyncSession, email: str) -> User | None:
         """
-        メールアドレスを条件にユーザーを1件取得する。
+        メールアドレスを条件にユーザーを1件非同期で取得する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             email: 検索対象のメールアドレス。
 
         Returns:
             該当するユーザー。存在しない場合はNone。
         """
-        return db.query(User).filter(User.email == email).first()
+        result = await db.execute(
+            select(User).where(User.email == email)
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def create(db: Session, user_create: UserCreateRequest) -> User:
+    async def create(
+        db: AsyncSession,
+        user_create: UserCreateRequest,
+    ) -> User:
         """
-        新規ユーザーを登録する。
+        新規ユーザーを非同期で登録する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_create: ユーザー登録リクエスト。
 
         Returns:
@@ -72,22 +86,22 @@ class UserRepository:
         )
 
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
         return user
 
     @staticmethod
-    def update(
-        db: Session,
+    async def update(
+        db: AsyncSession,
         user: User,
         user_update: UserUpdateRequest,
     ) -> User:
         """
-        既存ユーザー情報を更新する。
+        既存ユーザー情報を非同期で更新する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user: 更新対象のユーザー。
             user_update: ユーザー更新リクエスト。
 
@@ -99,21 +113,21 @@ class UserRepository:
         user.role = user_update.role
         user.is_active = user_update.is_active
 
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
         return user
 
     @staticmethod
-    def deactivate(db: Session, user: User) -> User:
+    async def deactivate(db: AsyncSession, user: User) -> User:
         """
-        ユーザーを無効化する。
+        ユーザーを非同期で無効化する。
 
         物理削除は行わず、is_activeをFalseに更新することで
         過去データとの紐づきを維持する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user: 無効化対象のユーザー。
 
         Returns:
@@ -121,19 +135,20 @@ class UserRepository:
         """
         user.is_active = False
 
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
         return user
 
     @staticmethod
-    def create_initial_users(db: Session) -> None:
+    async def create_initial_users(db: AsyncSession) -> None:
         """
-        初期表示確認用のユーザーデータを作成する。
+        初期表示確認用のユーザーデータを非同期で作成する。
 
         ユーザーが1件も存在しない場合のみ、サンプルユーザーを登録する。
         """
-        exists_user = db.query(User).first()
+        result = await db.execute(select(User).limit(1))
+        exists_user = result.scalar_one_or_none()
 
         if exists_user:
             return
@@ -154,4 +169,4 @@ class UserRepository:
         ]
 
         db.add_all(users)
-        db.commit()
+        await db.commit()

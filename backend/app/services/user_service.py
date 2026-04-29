@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -10,31 +10,32 @@ class UserService:
     """
     ユーザー情報に関する業務処理を担当するサービス。
 
-    API層から呼び出され、必要に応じてリポジトリを利用してユーザー情報を扱う。
+    API層から呼び出され、必要に応じてリポジトリを利用して
+    ユーザー情報を非同期で扱う。
     """
 
     @staticmethod
-    def get_users(db: Session) -> list[User]:
+    async def get_users(db: AsyncSession) -> list[User]:
         """
-        ユーザー一覧を取得する。
+        ユーザー一覧を非同期で取得する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
 
         Returns:
             ユーザー情報の一覧。
         """
-        return UserRepository.find_all(db)
+        return await UserRepository.find_all(db)
 
     @staticmethod
-    def get_user(db: Session, user_id: int) -> User:
+    async def get_user(db: AsyncSession, user_id: int) -> User:
         """
-        指定されたIDのユーザーを取得する。
+        指定されたIDのユーザーを非同期で取得する。
 
         ユーザーが存在しない場合は404エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_id: 取得対象のユーザーID。
 
         Returns:
@@ -43,7 +44,7 @@ class UserService:
         Raises:
             HTTPException: ユーザーが存在しない場合。
         """
-        user = UserRepository.find_by_id(
+        user = await UserRepository.find_by_id(
             db=db,
             user_id=user_id,
         )
@@ -57,14 +58,17 @@ class UserService:
         return user
 
     @staticmethod
-    def create_user(db: Session, user_create: UserCreateRequest) -> User:
+    async def create_user(
+        db: AsyncSession,
+        user_create: UserCreateRequest,
+    ) -> User:
         """
-        新規ユーザーを登録する。
+        新規ユーザーを非同期で登録する。
 
         メールアドレスの重複を確認し、既に登録済みの場合は409エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_create: ユーザー登録リクエスト。
 
         Returns:
@@ -73,7 +77,7 @@ class UserService:
         Raises:
             HTTPException: メールアドレスが既に使用されている場合。
         """
-        existing_user = UserRepository.find_by_email(
+        existing_user = await UserRepository.find_by_email(
             db=db,
             email=user_create.email,
         )
@@ -84,24 +88,24 @@ class UserService:
                 detail="Email already exists",
             )
 
-        return UserRepository.create(
+        return await UserRepository.create(
             db=db,
             user_create=user_create,
         )
 
     @staticmethod
-    def update_user(
-        db: Session,
+    async def update_user(
+        db: AsyncSession,
         user_id: int,
         user_update: UserUpdateRequest,
     ) -> User:
         """
-        指定されたIDのユーザー情報を更新する。
+        指定されたIDのユーザー情報を非同期で更新する。
 
         更新対象ユーザーの存在確認と、メールアドレスの重複確認を行ったうえで更新する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_id: 更新対象のユーザーID。
             user_update: ユーザー更新リクエスト。
 
@@ -111,12 +115,12 @@ class UserService:
         Raises:
             HTTPException: ユーザーが存在しない場合、またはメールアドレスが重複している場合。
         """
-        user = UserService.get_user(
+        user = await UserService.get_user(
             db=db,
             user_id=user_id,
         )
 
-        existing_user = UserRepository.find_by_email(
+        existing_user = await UserRepository.find_by_email(
             db=db,
             email=user_update.email,
         )
@@ -127,22 +131,22 @@ class UserService:
                 detail="Email already exists",
             )
 
-        return UserRepository.update(
+        return await UserRepository.update(
             db=db,
             user=user,
             user_update=user_update,
         )
 
     @staticmethod
-    def deactivate_user(db: Session, user_id: int) -> User:
+    async def deactivate_user(db: AsyncSession, user_id: int) -> User:
         """
-        指定されたIDのユーザーを無効化する。
+        指定されたIDのユーザーを非同期で無効化する。
 
         物理削除ではなくis_activeをFalseに更新する。
         既に無効化されているユーザーの場合は409エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             user_id: 無効化対象のユーザーID。
 
         Returns:
@@ -151,7 +155,7 @@ class UserService:
         Raises:
             HTTPException: ユーザーが存在しない場合、または既に無効化済みの場合。
         """
-        user = UserService.get_user(
+        user = await UserService.get_user(
             db=db,
             user_id=user_id,
         )
@@ -162,17 +166,17 @@ class UserService:
                 detail="User is already inactive",
             )
 
-        return UserRepository.deactivate(
+        return await UserRepository.deactivate(
             db=db,
             user=user,
         )
 
     @staticmethod
-    def create_initial_users(db: Session) -> None:
+    async def create_initial_users(db: AsyncSession) -> None:
         """
-        開発環境用の初期ユーザーデータを作成する。
+        開発環境用の初期ユーザーデータを非同期で作成する。
 
         ユーザー一覧APIの動作確認をしやすくするため、
         初回起動時にサンプルユーザーを登録する。
         """
-        UserRepository.create_initial_users(db)
+        await UserRepository.create_initial_users(db)

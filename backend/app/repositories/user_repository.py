@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.schemas.user import UserCreateRequest
 
 
 class UserRepository:
@@ -22,6 +23,45 @@ class UserRepository:
             ユーザー情報の一覧。
         """
         return db.query(User).order_by(User.id).all()
+
+    @staticmethod
+    def find_by_email(db: Session, email: str) -> User | None:
+        """
+        メールアドレスを条件にユーザーを1件取得する。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            email: 検索対象のメールアドレス。
+
+        Returns:
+            該当するユーザー。存在しない場合はNone。
+        """
+        return db.query(User).filter(User.email == email).first()
+
+    @staticmethod
+    def create(db: Session, user_create: UserCreateRequest) -> User:
+        """
+        新規ユーザーを登録する。
+
+        Args:
+            db: SQLAlchemyのDBセッション。
+            user_create: ユーザー登録リクエスト。
+
+        Returns:
+            登録されたユーザー情報。
+        """
+        user = User(
+            name=user_create.name,
+            email=user_create.email,
+            role=user_create.role,
+            is_active=True,
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return user
 
     @staticmethod
     def create_initial_users(db: Session) -> None:

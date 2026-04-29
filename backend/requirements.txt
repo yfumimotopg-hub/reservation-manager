@@ -2,6 +2,6 @@ fastapi
 uvicorn[standard]
 pydantic-settings
 SQLAlchemy
-PyMySQL
+asyncmy
 cryptography
 email-validator

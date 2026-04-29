@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.schemas.database import DatabaseHealthResponse
@@ -9,10 +9,12 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=DatabaseHealthResponse)
-def database_health_check(db: Session = Depends(get_db)) -> DatabaseHealthResponse:
+async def database_health_check(
+    db: AsyncSession = Depends(get_db),
+) -> DatabaseHealthResponse:
     """
     DB接続状態を確認するAPIエンドポイント。
 
-    MySQLへ接続できるか確認し、接続できる場合は正常レスポンスを返す。
+    MySQLへ非同期で接続できるか確認し、接続できる場合は正常レスポンスを返す。
     """
-    return DatabaseService.check_connection(db)
+    return await DatabaseService.check_connection(db)

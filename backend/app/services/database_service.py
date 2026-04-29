@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.database import DatabaseHealthResponse
 
@@ -10,17 +10,17 @@ class DatabaseService:
     """
 
     @staticmethod
-    def check_connection(db: Session) -> DatabaseHealthResponse:
+    async def check_connection(db: AsyncSession) -> DatabaseHealthResponse:
         """
-        DBへ簡単なSQLを実行し、接続できるか確認する。
+        DBへ簡単なSQLを非同期で実行し、接続できるか確認する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
 
         Returns:
             DB接続確認結果。
         """
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
 
         return DatabaseHealthResponse(
             status="ok",

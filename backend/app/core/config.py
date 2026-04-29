@@ -22,12 +22,12 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """
-        SQLAlchemyで使用するDB接続URLを生成する。
+        SQLAlchemyの非同期DB接続URLを生成する。
 
-        MySQLへPyMySQLドライバ経由で接続するためのURLを返す。
+        MySQLへasyncmyドライバ経由で接続するためのURLを返す。
         """
         return (
-            f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"mysql+asyncmy://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
 

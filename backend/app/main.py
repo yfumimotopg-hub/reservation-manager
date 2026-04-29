@@ -5,7 +5,9 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
 from app.models.base import Base
+from app.models.meeting_room import MeetingRoom
 from app.models.user import User
+from app.services.meeting_room_service import MeetingRoomService
 from app.services.user_service import UserService
 
 
@@ -22,13 +24,14 @@ def create_seed_data() -> None:
     """
     開発環境用の初期データを作成する。
 
-    ユーザー一覧APIの動作確認をしやすくするため、
-    サンプルユーザーを登録する。
+    ユーザー一覧APIや会議室一覧APIの動作確認をしやすくするため、
+    サンプルデータを登録する。
     """
     db: Session = SessionLocal()
 
     try:
         UserService.create_initial_users(db)
+        MeetingRoomService.create_initial_meeting_rooms(db)
     finally:
         db.close()
 

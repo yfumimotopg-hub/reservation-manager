@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.meeting_room import MeetingRoom
 from app.repositories.meeting_room_repository import MeetingRoomRepository
@@ -14,31 +14,34 @@ class MeetingRoomService:
     会議室情報に関する業務処理を担当するサービス。
 
     API層から呼び出され、会議室の存在確認や重複チェックなどの
-    業務ルールを扱う。
+    業務ルールを非同期で扱う。
     """
 
     @staticmethod
-    def get_meeting_rooms(db: Session) -> list[MeetingRoom]:
+    async def get_meeting_rooms(db: AsyncSession) -> list[MeetingRoom]:
         """
-        会議室一覧を取得する。
+        会議室一覧を非同期で取得する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
 
         Returns:
             会議室情報の一覧。
         """
-        return MeetingRoomRepository.find_all(db)
+        return await MeetingRoomRepository.find_all(db)
 
     @staticmethod
-    def get_meeting_room(db: Session, meeting_room_id: int) -> MeetingRoom:
+    async def get_meeting_room(
+        db: AsyncSession,
+        meeting_room_id: int,
+    ) -> MeetingRoom:
         """
-        指定されたIDの会議室を取得する。
+        指定されたIDの会議室を非同期で取得する。
 
         会議室が存在しない場合は404エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             meeting_room_id: 取得対象の会議室ID。
 
         Returns:
@@ -47,7 +50,7 @@ class MeetingRoomService:
         Raises:
             HTTPException: 会議室が存在しない場合。
         """
-        meeting_room = MeetingRoomRepository.find_by_id(
+        meeting_room = await MeetingRoomRepository.find_by_id(
             db=db,
             meeting_room_id=meeting_room_id,
         )
@@ -61,17 +64,17 @@ class MeetingRoomService:
         return meeting_room
 
     @staticmethod
-    def create_meeting_room(
-        db: Session,
+    async def create_meeting_room(
+        db: AsyncSession,
         meeting_room_create: MeetingRoomCreateRequest,
     ) -> MeetingRoom:
         """
-        新規会議室を登録する。
+        新規会議室を非同期で登録する。
 
         会議室名の重複を確認し、既に登録済みの場合は409エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             meeting_room_create: 会議室登録リクエスト。
 
         Returns:
@@ -80,7 +83,7 @@ class MeetingRoomService:
         Raises:
             HTTPException: 会議室名が既に使用されている場合。
         """
-        existing_meeting_room = MeetingRoomRepository.find_by_name(
+        existing_meeting_room = await MeetingRoomRepository.find_by_name(
             db=db,
             name=meeting_room_create.name,
         )
@@ -91,24 +94,24 @@ class MeetingRoomService:
                 detail="Meeting room name already exists",
             )
 
-        return MeetingRoomRepository.create(
+        return await MeetingRoomRepository.create(
             db=db,
             meeting_room_create=meeting_room_create,
         )
 
     @staticmethod
-    def update_meeting_room(
-        db: Session,
+    async def update_meeting_room(
+        db: AsyncSession,
         meeting_room_id: int,
         meeting_room_update: MeetingRoomUpdateRequest,
     ) -> MeetingRoom:
         """
-        指定されたIDの会議室情報を更新する。
+        指定されたIDの会議室情報を非同期で更新する。
 
         更新対象会議室の存在確認と、会議室名の重複確認を行ったうえで更新する。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             meeting_room_id: 更新対象の会議室ID。
             meeting_room_update: 会議室更新リクエスト。
 
@@ -118,12 +121,12 @@ class MeetingRoomService:
         Raises:
             HTTPException: 会議室が存在しない場合、または会議室名が重複している場合。
         """
-        meeting_room = MeetingRoomService.get_meeting_room(
+        meeting_room = await MeetingRoomService.get_meeting_room(
             db=db,
             meeting_room_id=meeting_room_id,
         )
 
-        existing_meeting_room = MeetingRoomRepository.find_by_name(
+        existing_meeting_room = await MeetingRoomRepository.find_by_name(
             db=db,
             name=meeting_room_update.name,
         )
@@ -134,25 +137,25 @@ class MeetingRoomService:
                 detail="Meeting room name already exists",
             )
 
-        return MeetingRoomRepository.update(
+        return await MeetingRoomRepository.update(
             db=db,
             meeting_room=meeting_room,
             meeting_room_update=meeting_room_update,
         )
 
     @staticmethod
-    def deactivate_meeting_room(
-        db: Session,
+    async def deactivate_meeting_room(
+        db: AsyncSession,
         meeting_room_id: int,
     ) -> MeetingRoom:
         """
-        指定されたIDの会議室を無効化する。
+        指定されたIDの会議室を非同期で無効化する。
 
         物理削除ではなくis_activeをFalseに更新する。
         既に無効化されている会議室の場合は409エラーを返す。
 
         Args:
-            db: SQLAlchemyのDBセッション。
+            db: SQLAlchemyの非同期DBセッション。
             meeting_room_id: 無効化対象の会議室ID。
 
         Returns:
@@ -161,7 +164,7 @@ class MeetingRoomService:
         Raises:
             HTTPException: 会議室が存在しない場合、または既に無効化済みの場合。
         """
-        meeting_room = MeetingRoomService.get_meeting_room(
+        meeting_room = await MeetingRoomService.get_meeting_room(
             db=db,
             meeting_room_id=meeting_room_id,
         )
@@ -172,17 +175,17 @@ class MeetingRoomService:
                 detail="Meeting room is already inactive",
             )
 
-        return MeetingRoomRepository.deactivate(
+        return await MeetingRoomRepository.deactivate(
             db=db,
             meeting_room=meeting_room,
         )
 
     @staticmethod
-    def create_initial_meeting_rooms(db: Session) -> None:
+    async def create_initial_meeting_rooms(db: AsyncSession) -> None:
         """
-        開発環境用の初期会議室データを作成する。
+        開発環境用の初期会議室データを非同期で作成する。
 
         会議室一覧APIの動作確認をしやすくするため、
         初回起動時にサンプル会議室を登録する。
         """
-        MeetingRoomRepository.create_initial_meeting_rooms(db)
+        await MeetingRoomRepository.create_initial_meeting_rooms(db)

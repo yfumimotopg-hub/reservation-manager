@@ -30,3 +30,21 @@ export const createReservation = async (
   const response = await apiClient.post<Reservation>("/reservations", request);
   return response.data;
 };
+
+/**
+ * 予約無効化APIを呼び出す。
+ *
+ * 予約を物理削除せず、is_active=false に更新する。
+ *
+ * @param reservationId 無効化対象の予約ID
+ * @returns 無効化後の予約情報
+ */
+export const deactivateReservation = async (
+  reservationId: number,
+): Promise<Reservation> => {
+  const response = await apiClient.delete<Reservation>(
+    `/reservations/${reservationId}`,
+  );
+
+  return response.data;
+};

@@ -2,12 +2,14 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { fetchCurrentUser } from "../../api/authApi";
 import { fetchMeetingRooms } from "../../api/meetingRoomApi";
-import { createReservation, fetchReservations } from "../../api/reservationApi";
+import { createReservation, fetchReservations, deactivateReservation } from "../../api/reservationApi";
 import { fetchUsers } from "../../api/userApi";
 import type { CurrentUser } from "../../types/auth";
 import type { MeetingRoom } from "../../types/meetingRoom";
 import type { Reservation } from "../../types/reservation";
 import type { User } from "../../types/user";
+
+
 
 type DisplayMode = "list" | "calendar";
 
@@ -270,6 +272,32 @@ export const ReservationListPage = () => {
     }
   };
 
+  /**
+   * 予約を無効化する。
+   *
+   * 対象予約を物理削除せず、バックエンド側で is_active=false に更新する。
+   *
+   * @param reservationId 無効化対象の予約ID
+   */
+  const handleDeactivateReservation = async (reservationId: number) => {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const confirmed = window.confirm("この予約を無効化しますか？");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deactivateReservation(reservationId);
+      setSuccessMessage("予約を無効化しました。");
+      await reloadReservations();
+    } catch {
+      setErrorMessage("予約の無効化に失敗しました。");
+    }
+  };
+
   return (
     <div className="page">
       <div className="wide-card">
@@ -384,6 +412,7 @@ export const ReservationListPage = () => {
                 <th>開始日時</th>
                 <th>終了日時</th>
                 <th>状態</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -396,6 +425,16 @@ export const ReservationListPage = () => {
                   <td>{formatDateTime(reservation.start_at)}</td>
                   <td>{formatDateTime(reservation.end_at)}</td>
                   <td>{reservation.is_active ? "有効" : "無効"}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => handleDeactivateReservation(reservation.id)}
+                      disabled={!reservation.is_active}
+                    >
+                      無効化
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -449,6 +488,14 @@ export const ReservationListPage = () => {
                             {reservation.end_at.slice(11, 16)}
                           </span>
                           <span>{getMeetingRoomName(reservation.meeting_room_id)}</span>
+
+                          <button
+                            type="button"
+                            className="calendar-danger-button"
+                            onClick={() => handleDeactivateReservation(reservation.id)}
+                          >
+                            無効化
+                          </button>
                         </div>
                       ))}
                     </div>

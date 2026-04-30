@@ -826,7 +826,7 @@ async def test_user_create_reservation_uses_current_user_id(
     assert reservation["user_id"] != other_user["id"]
 
 
-async def test_user_get_reservations_returns_only_own_reservations(
+async def test_user_get_reservations_returns_all_reservations(
     client: AsyncClient,
     admin_auth_headers: dict[str, str],
     user_auth_headers: dict[str, str],
@@ -836,7 +836,10 @@ async def test_user_get_reservations_returns_only_own_reservations(
 ) -> None:
     """
     一般ユーザーで予約一覧APIを実行した場合、
-    自分の予約のみ取得できることを確認する。
+    全員の予約を取得できることを確認する。
+
+    会議室予約システムでは空き状況を確認する必要があるため、
+    一般ユーザーにも全予約の閲覧を許可する。
     """
     current_user = await fetch_current_user_for_test(
         client=client,
@@ -887,10 +890,9 @@ async def test_user_get_reservations_returns_only_own_reservations(
     reservation_ids = [reservation["id"] for reservation in response.json()]
 
     assert own_reservation["id"] in reservation_ids
-    assert other_reservation["id"] not in reservation_ids
+    assert other_reservation["id"] in reservation_ids
 
-
-async def test_user_get_other_user_reservation_returns_403(
+async def test_user_get_other_user_reservation_succeeds(
     client: AsyncClient,
     admin_auth_headers: dict[str, str],
     user_auth_headers: dict[str, str],
@@ -900,7 +902,10 @@ async def test_user_get_other_user_reservation_returns_403(
 ) -> None:
     """
     一般ユーザーで他人の予約詳細APIを実行した場合、
-    403 Forbidden が返ることを確認する。
+    予約詳細を取得できることを確認する。
+
+    会議室予約システムでは空き状況や予約内容の確認が必要なため、
+    詳細取得は一般ユーザーにも許可する。
     """
     other_user = await create_user_for_test(
         client=client,
@@ -930,9 +935,11 @@ async def test_user_get_other_user_reservation_returns_403(
         headers=user_auth_headers,
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "You can only operate your own reservations"
+    assert response.status_code == 200
 
+    data = response.json()
+    assert data["id"] == other_reservation["id"]
+    assert data["user_id"] == other_user["id"]
 
 async def test_user_deactivate_other_user_reservation_returns_403(
     client: AsyncClient,

@@ -2,7 +2,11 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { fetchCurrentUser } from "../../api/authApi";
 import { fetchMeetingRooms } from "../../api/meetingRoomApi";
-import { createReservation, fetchReservations, deactivateReservation } from "../../api/reservationApi";
+import {
+  createReservation,
+  deactivateReservation,
+  fetchReservations,
+} from "../../api/reservationApi";
 import { fetchUsers } from "../../api/userApi";
 import type { CurrentUser } from "../../types/auth";
 import type { MeetingRoom } from "../../types/meetingRoom";
@@ -271,6 +275,7 @@ export const ReservationListPage = () => {
       );
     }
   };
+
 
   /**
    * 予約を無効化する。

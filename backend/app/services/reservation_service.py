@@ -30,8 +30,9 @@ class ReservationService:
         """
         予約一覧を非同期で取得する。
 
-        adminは全予約を取得できる。
-        userは自分の予約のみ取得できる。
+        admin / user ともに全予約を取得できる。
+        会議室予約システムでは、一般ユーザーも空き状況を確認する必要があるため、
+        予約一覧は全ユーザーに公開する。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
@@ -40,13 +41,7 @@ class ReservationService:
         Returns:
             予約情報の一覧。
         """
-        if current_user.role == "admin":
-            return await ReservationRepository.find_all(db)
-
-        return await ReservationRepository.find_by_user_id(
-            db=db,
-            user_id=current_user.id,
-        )
+        return await ReservationRepository.find_all(db)
 
     @staticmethod
     async def get_reservation(
@@ -57,8 +52,9 @@ class ReservationService:
         """
         指定されたIDの予約を非同期で取得する。
 
-        adminは全予約を取得できる。
-        userは自分の予約のみ取得できる。
+        admin / user ともに予約詳細を取得できる。
+        会議室予約システムでは、一般ユーザーも空き状況や予約内容を確認する必要があるため、
+        詳細取得では所有者チェックを行わない。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
@@ -69,7 +65,7 @@ class ReservationService:
             予約情報。
 
         Raises:
-            HTTPException: 予約が存在しない、または操作権限がない場合。
+            HTTPException: 予約が存在しない場合。
         """
         reservation = await ReservationRepository.find_by_id(
             db=db,
@@ -81,11 +77,6 @@ class ReservationService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Reservation not found",
             )
-
-        ReservationService.validate_reservation_owner(
-            reservation=reservation,
-            current_user=current_user,
-        )
 
         return reservation
 
@@ -285,6 +276,11 @@ class ReservationService:
             current_user=current_user,
         )
 
+        ReservationService.validate_reservation_owner(
+            reservation=reservation,
+            current_user=current_user,
+        )
+
         if current_user.role != "admin":
             reservation_update = reservation_update.model_copy(
                 update={"user_id": current_user.id}
@@ -338,6 +334,11 @@ class ReservationService:
         reservation = await ReservationService.get_reservation(
             db=db,
             reservation_id=reservation_id,
+            current_user=current_user,
+        )
+
+        ReservationService.validate_reservation_owner(
+            reservation=reservation,
             current_user=current_user,
         )
 

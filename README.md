@@ -303,4 +303,3 @@ docker compose exec -T backend pytest
 - 予約一覧の検索・日付絞り込み
 - 予約の更新画面
 - カレンダーの日付クリックによる予約フォーム自動入力
-- GitHub Actions による自動テスト

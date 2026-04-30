@@ -52,6 +52,31 @@ async def admin_auth_headers(client: AsyncClient) -> dict[str, str]:
 
 
 @pytest.fixture
+async def user_auth_headers(client: AsyncClient) -> dict[str, str]:
+    """
+    一般ユーザーでログインし、認証済みリクエスト用のヘッダーを生成する。
+
+    Returns:
+        Authorizationヘッダーを含む辞書。
+    """
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "user@example.com",
+            "password": "password",
+        },
+    )
+
+    assert response.status_code == 200
+
+    access_token = response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {access_token}",
+    }
+
+
+@pytest.fixture
 async def created_user_ids() -> AsyncGenerator[list[int], None]:
     """
     テスト中に作成したユーザーIDを管理し、テスト終了後に物理削除する。
@@ -155,6 +180,30 @@ def iso_datetime(base_hour: int = 10) -> tuple[str, str]:
     end_at = start_at + timedelta(hours=1)
 
     return start_at.isoformat(), end_at.isoformat()
+
+
+async def fetch_current_user_for_test(
+    client: AsyncClient,
+    headers: dict[str, str],
+) -> dict:
+    """
+    テスト用にログイン中ユーザー情報を取得する。
+
+    Args:
+        client: テスト用HTTPクライアント。
+        headers: 認証済みリクエスト用ヘッダー。
+
+    Returns:
+        ログイン中ユーザー情報。
+    """
+    response = await client.get(
+        "/api/v1/auth/me",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    return response.json()
 
 
 async def create_user_for_test(
@@ -552,17 +601,14 @@ async def test_create_reservation_with_overlap_returns_409(
         created_meeting_room_ids=created_meeting_room_ids,
     )
 
-    first_start_at = "2026-05-02T10:00:00"
-    first_end_at = "2026-05-02T11:00:00"
-
     await create_reservation_for_test(
         client=client,
         headers=admin_auth_headers,
         created_reservation_ids=created_reservation_ids,
         user_id=user["id"],
         meeting_room_id=meeting_room["id"],
-        start_at=first_start_at,
-        end_at=first_end_at,
+        start_at="2026-05-02T10:00:00",
+        end_at="2026-05-02T11:00:00",
         title_prefix="既存予約",
     )
 
@@ -728,3 +774,250 @@ async def test_deactivate_inactive_reservation_returns_409(
 
     assert second_response.status_code == 409
     assert second_response.json()["detail"] == "Reservation is already inactive"
+
+
+async def test_user_create_reservation_uses_current_user_id(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    user_auth_headers: dict[str, str],
+    created_user_ids: list[int],
+    created_meeting_room_ids: list[int],
+    created_reservation_ids: list[int],
+) -> None:
+    """
+    一般ユーザーで予約登録した場合、
+    リクエストのuser_idが他人のIDでもログイン中ユーザーIDで登録されることを確認する。
+    """
+    current_user = await fetch_current_user_for_test(
+        client=client,
+        headers=user_auth_headers,
+    )
+
+    other_user = await create_user_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_user_ids=created_user_ids,
+    )
+
+    meeting_room = await create_meeting_room_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_meeting_room_ids=created_meeting_room_ids,
+    )
+
+    response = await client.post(
+        "/api/v1/reservations",
+        headers=user_auth_headers,
+        json={
+            "user_id": other_user["id"],
+            "meeting_room_id": meeting_room["id"],
+            "title": "一般ユーザー予約",
+            "start_at": "2026-06-01T10:00:00",
+            "end_at": "2026-06-01T11:00:00",
+        },
+    )
+
+    assert response.status_code == 201
+
+    reservation = response.json()
+    created_reservation_ids.append(reservation["id"])
+
+    assert reservation["user_id"] == current_user["id"]
+    assert reservation["user_id"] != other_user["id"]
+
+
+async def test_user_get_reservations_returns_only_own_reservations(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    user_auth_headers: dict[str, str],
+    created_user_ids: list[int],
+    created_meeting_room_ids: list[int],
+    created_reservation_ids: list[int],
+) -> None:
+    """
+    一般ユーザーで予約一覧APIを実行した場合、
+    自分の予約のみ取得できることを確認する。
+    """
+    current_user = await fetch_current_user_for_test(
+        client=client,
+        headers=user_auth_headers,
+    )
+
+    other_user = await create_user_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_user_ids=created_user_ids,
+    )
+
+    meeting_room = await create_meeting_room_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_meeting_room_ids=created_meeting_room_ids,
+    )
+
+    own_reservation = await create_reservation_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_reservation_ids=created_reservation_ids,
+        user_id=current_user["id"],
+        meeting_room_id=meeting_room["id"],
+        start_at="2026-06-02T10:00:00",
+        end_at="2026-06-02T11:00:00",
+        title_prefix="自分の予約",
+    )
+
+    other_reservation = await create_reservation_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_reservation_ids=created_reservation_ids,
+        user_id=other_user["id"],
+        meeting_room_id=meeting_room["id"],
+        start_at="2026-06-02T11:00:00",
+        end_at="2026-06-02T12:00:00",
+        title_prefix="他人の予約",
+    )
+
+    response = await client.get(
+        "/api/v1/reservations",
+        headers=user_auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    reservation_ids = [reservation["id"] for reservation in response.json()]
+
+    assert own_reservation["id"] in reservation_ids
+    assert other_reservation["id"] not in reservation_ids
+
+
+async def test_user_get_other_user_reservation_returns_403(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    user_auth_headers: dict[str, str],
+    created_user_ids: list[int],
+    created_meeting_room_ids: list[int],
+    created_reservation_ids: list[int],
+) -> None:
+    """
+    一般ユーザーで他人の予約詳細APIを実行した場合、
+    403 Forbidden が返ることを確認する。
+    """
+    other_user = await create_user_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_user_ids=created_user_ids,
+    )
+
+    meeting_room = await create_meeting_room_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_meeting_room_ids=created_meeting_room_ids,
+    )
+
+    other_reservation = await create_reservation_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_reservation_ids=created_reservation_ids,
+        user_id=other_user["id"],
+        meeting_room_id=meeting_room["id"],
+        start_at="2026-06-03T10:00:00",
+        end_at="2026-06-03T11:00:00",
+        title_prefix="他人の予約詳細",
+    )
+
+    response = await client.get(
+        f"/api/v1/reservations/{other_reservation['id']}",
+        headers=user_auth_headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You can only operate your own reservations"
+
+
+async def test_user_deactivate_other_user_reservation_returns_403(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    user_auth_headers: dict[str, str],
+    created_user_ids: list[int],
+    created_meeting_room_ids: list[int],
+    created_reservation_ids: list[int],
+) -> None:
+    """
+    一般ユーザーで他人の予約を無効化しようとした場合、
+    403 Forbidden が返ることを確認する。
+    """
+    other_user = await create_user_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_user_ids=created_user_ids,
+    )
+
+    meeting_room = await create_meeting_room_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_meeting_room_ids=created_meeting_room_ids,
+    )
+
+    other_reservation = await create_reservation_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_reservation_ids=created_reservation_ids,
+        user_id=other_user["id"],
+        meeting_room_id=meeting_room["id"],
+        start_at="2026-06-04T10:00:00",
+        end_at="2026-06-04T11:00:00",
+        title_prefix="他人の無効化不可予約",
+    )
+
+    response = await client.delete(
+        f"/api/v1/reservations/{other_reservation['id']}",
+        headers=user_auth_headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "You can only operate your own reservations"
+
+
+async def test_admin_deactivate_other_user_reservation_succeeds(
+    client: AsyncClient,
+    admin_auth_headers: dict[str, str],
+    created_user_ids: list[int],
+    created_meeting_room_ids: list[int],
+    created_reservation_ids: list[int],
+) -> None:
+    """
+    管理者ユーザーで他人の予約を無効化できることを確認する。
+    """
+    other_user = await create_user_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_user_ids=created_user_ids,
+    )
+
+    meeting_room = await create_meeting_room_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_meeting_room_ids=created_meeting_room_ids,
+    )
+
+    reservation = await create_reservation_for_test(
+        client=client,
+        headers=admin_auth_headers,
+        created_reservation_ids=created_reservation_ids,
+        user_id=other_user["id"],
+        meeting_room_id=meeting_room["id"],
+        start_at="2026-06-05T10:00:00",
+        end_at="2026-06-05T11:00:00",
+        title_prefix="管理者無効化予約",
+    )
+
+    response = await client.delete(
+        f"/api/v1/reservations/{reservation['id']}",
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == reservation["id"]
+    assert data["is_active"] is False

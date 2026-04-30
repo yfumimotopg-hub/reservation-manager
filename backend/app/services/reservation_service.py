@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.reservation import Reservation
+from app.models.user import User
 from app.repositories.meeting_room_repository import MeetingRoomRepository
 from app.repositories.reservation_repository import ReservationRepository
 from app.repositories.user_repository import UserRepository
@@ -18,41 +19,57 @@ class ReservationService:
     予約情報に関する業務処理を担当するサービス。
 
     ユーザー・会議室の存在確認、無効状態の確認、
-    予約時間の重複チェックなどの業務ルールを非同期で扱う。
+    予約時間の重複チェック、予約操作の権限制御を非同期で扱う。
     """
 
     @staticmethod
-    async def get_reservations(db: AsyncSession) -> list[Reservation]:
+    async def get_reservations(
+        db: AsyncSession,
+        current_user: User,
+    ) -> list[Reservation]:
         """
         予約一覧を非同期で取得する。
 
+        adminは全予約を取得できる。
+        userは自分の予約のみ取得できる。
+
         Args:
             db: SQLAlchemyの非同期DBセッション。
+            current_user: ログイン中ユーザー。
 
         Returns:
             予約情報の一覧。
         """
-        return await ReservationRepository.find_all(db)
+        if current_user.role == "admin":
+            return await ReservationRepository.find_all(db)
+
+        return await ReservationRepository.find_by_user_id(
+            db=db,
+            user_id=current_user.id,
+        )
 
     @staticmethod
     async def get_reservation(
         db: AsyncSession,
         reservation_id: int,
+        current_user: User,
     ) -> Reservation:
         """
         指定されたIDの予約を非同期で取得する。
 
-        予約が存在しない場合は404エラーを返す。
+        adminは全予約を取得できる。
+        userは自分の予約のみ取得できる。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
             reservation_id: 取得対象の予約ID。
+            current_user: ログイン中ユーザー。
 
         Returns:
             予約情報。
 
         Raises:
-            HTTPException: 予約が存在しない場合。
+            HTTPException: 予約が存在しない、または操作権限がない場合。
         """
         reservation = await ReservationRepository.find_by_id(
             db=db,
@@ -65,13 +82,42 @@ class ReservationService:
                 detail="Reservation not found",
             )
 
+        ReservationService.validate_reservation_owner(
+            reservation=reservation,
+            current_user=current_user,
+        )
+
         return reservation
 
     @staticmethod
-    async def validate_user(
-        db: AsyncSession,
-        user_id: int,
+    def validate_reservation_owner(
+        reservation: Reservation,
+        current_user: User,
     ) -> None:
+        """
+        ログイン中ユーザーが予約を操作できる権限を持つか確認する。
+
+        adminは全予約を操作できる。
+        userは自分の予約のみ操作できる。
+
+        Args:
+            reservation: 操作対象の予約。
+            current_user: ログイン中ユーザー。
+
+        Raises:
+            HTTPException: 操作権限がない場合。
+        """
+        if current_user.role == "admin":
+            return
+
+        if reservation.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only operate your own reservations",
+            )
+
+    @staticmethod
+    async def validate_user(db: AsyncSession, user_id: int) -> None:
         """
         予約に利用するユーザーが存在し、有効状態であることを非同期で確認する。
 
@@ -170,19 +216,27 @@ class ReservationService:
     async def create_reservation(
         db: AsyncSession,
         reservation_create: ReservationCreateRequest,
+        current_user: User,
     ) -> Reservation:
         """
         新規予約を非同期で登録する。
 
-        ユーザー・会議室の有効性と予約時間の重複を確認したうえで登録する。
+        adminは任意のユーザーIDで予約登録できる。
+        userはリクエストのuser_idに関係なく、ログイン中ユーザーIDで予約登録する。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
             reservation_create: 予約登録リクエスト。
+            current_user: ログイン中ユーザー。
 
         Returns:
             登録された予約情報。
         """
+        if current_user.role != "admin":
+            reservation_create = reservation_create.model_copy(
+                update={"user_id": current_user.id}
+            )
+
         await ReservationService.validate_user(
             db=db,
             user_id=reservation_create.user_id,
@@ -208,17 +262,19 @@ class ReservationService:
         db: AsyncSession,
         reservation_id: int,
         reservation_update: ReservationUpdateRequest,
+        current_user: User,
     ) -> Reservation:
         """
         指定されたIDの予約情報を非同期で更新する。
 
-        予約の存在確認、ユーザー・会議室の有効性確認、
-        予約時間の重複確認を行ったうえで更新する。
+        adminは全予約を更新できる。
+        userは自分の予約のみ更新でき、user_idはログイン中ユーザーIDに固定する。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
             reservation_id: 更新対象の予約ID。
             reservation_update: 予約更新リクエスト。
+            current_user: ログイン中ユーザー。
 
         Returns:
             更新後の予約情報。
@@ -226,7 +282,13 @@ class ReservationService:
         reservation = await ReservationService.get_reservation(
             db=db,
             reservation_id=reservation_id,
+            current_user=current_user,
         )
+
+        if current_user.role != "admin":
+            reservation_update = reservation_update.model_copy(
+                update={"user_id": current_user.id}
+            )
 
         await ReservationService.validate_user(
             db=db,
@@ -254,26 +316,29 @@ class ReservationService:
     async def deactivate_reservation(
         db: AsyncSession,
         reservation_id: int,
+        current_user: User,
     ) -> Reservation:
         """
         指定されたIDの予約を非同期で無効化する。
 
-        物理削除ではなくis_activeをFalseに更新する。
-        既に無効化されている予約の場合は409エラーを返す。
+        adminは全予約を無効化できる。
+        userは自分の予約のみ無効化できる。
 
         Args:
             db: SQLAlchemyの非同期DBセッション。
             reservation_id: 無効化対象の予約ID。
+            current_user: ログイン中ユーザー。
 
         Returns:
             無効化後の予約情報。
 
         Raises:
-            HTTPException: 予約が存在しない場合、または既に無効化済みの場合。
+            HTTPException: 予約が存在しない、権限がない、または既に無効化済みの場合。
         """
         reservation = await ReservationService.get_reservation(
             db=db,
             reservation_id=reservation_id,
+            current_user=current_user,
         )
 
         if not reservation.is_active:

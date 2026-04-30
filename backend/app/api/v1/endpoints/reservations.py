@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.auth import get_current_user
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.reservation import (
     ReservationCreateRequest,
     ReservationResponse,
@@ -15,28 +17,34 @@ router = APIRouter()
 @router.get("", response_model=list[ReservationResponse])
 async def get_reservations(
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[ReservationResponse]:
     """
     予約一覧を取得するAPIエンドポイント。
 
-    DBに登録されている予約情報を非同期で一覧取得して返却する。
+    adminは全予約、userは自分の予約のみ返却する。
     """
-    return await ReservationService.get_reservations(db)
+    return await ReservationService.get_reservations(
+        db=db,
+        current_user=current_user,
+    )
 
 
 @router.get("/{reservation_id}", response_model=ReservationResponse)
 async def get_reservation(
     reservation_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReservationResponse:
     """
     予約詳細を取得するAPIエンドポイント。
 
-    パスパラメータで指定された予約IDに該当する予約情報を非同期で返却する。
+    adminは全予約、userは自分の予約のみ取得できる。
     """
     return await ReservationService.get_reservation(
         db=db,
         reservation_id=reservation_id,
+        current_user=current_user,
     )
 
 
@@ -48,16 +56,18 @@ async def get_reservation(
 async def create_reservation(
     reservation_create: ReservationCreateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReservationResponse:
     """
     新規予約を登録するAPIエンドポイント。
 
-    リクエスト内容をもとに予約を非同期で作成し、
-    登録された予約情報を返却する。
+    adminは任意のユーザーIDで予約登録できる。
+    userはログイン中ユーザーIDで予約登録する。
     """
     return await ReservationService.create_reservation(
         db=db,
         reservation_create=reservation_create,
+        current_user=current_user,
     )
 
 
@@ -66,17 +76,18 @@ async def update_reservation(
     reservation_id: int,
     reservation_update: ReservationUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReservationResponse:
     """
     予約情報を更新するAPIエンドポイント。
 
-    パスパラメータで指定された予約IDの予約情報を、
-    リクエスト内容で非同期更新する。
+    adminは全予約、userは自分の予約のみ更新できる。
     """
     return await ReservationService.update_reservation(
         db=db,
         reservation_id=reservation_id,
         reservation_update=reservation_update,
+        current_user=current_user,
     )
 
 
@@ -84,13 +95,15 @@ async def update_reservation(
 async def deactivate_reservation(
     reservation_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReservationResponse:
     """
     予約を無効化するAPIエンドポイント。
 
-    DBから物理削除せず、is_activeをFalseに非同期で更新する。
+    adminは全予約、userは自分の予約のみ無効化できる。
     """
     return await ReservationService.deactivate_reservation(
         db=db,
         reservation_id=reservation_id,
+        current_user=current_user,
     )

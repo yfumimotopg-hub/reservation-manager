@@ -35,6 +35,28 @@ class ReservationRepository:
         return list(result.scalars().all())
 
     @staticmethod
+    async def find_by_user_id(
+        db: AsyncSession,
+        user_id: int,
+    ) -> list[Reservation]:
+        """
+        指定されたユーザーIDに紐づく予約一覧を非同期で取得する。
+
+        Args:
+            db: SQLAlchemyの非同期DBセッション。
+            user_id: 予約者ユーザーID。
+
+        Returns:
+            指定ユーザーの予約一覧。
+        """
+        result = await db.execute(
+            select(Reservation)
+            .where(Reservation.user_id == user_id)
+            .order_by(Reservation.start_at)
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def find_by_id(
         db: AsyncSession,
         reservation_id: int,
@@ -64,10 +86,6 @@ class ReservationRepository:
     ) -> bool:
         """
         指定した会議室・時間帯に重複する有効な予約が存在するか非同期で確認する。
-
-        予約時間の重複は以下の条件で判定する。
-        既存予約.start_at < 新規予約.end_at かつ
-        既存予約.end_at > 新規予約.start_at
 
         Args:
             db: SQLAlchemyの非同期DBセッション。

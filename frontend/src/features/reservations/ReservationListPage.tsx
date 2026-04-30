@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { fetchCurrentUser } from "../../api/authApi";
 import { fetchMeetingRooms } from "../../api/meetingRoomApi";
@@ -9,17 +9,22 @@ import type { MeetingRoom } from "../../types/meetingRoom";
 import type { Reservation } from "../../types/reservation";
 import type { User } from "../../types/user";
 
+type DisplayMode = "list" | "calendar";
+
 /**
  * 予約一覧画面コンポーネント。
  *
  * ログイン済みユーザーが予約一覧を確認し、新規予約を登録できる画面。
- * adminの場合はユーザー一覧から予約者を選択し、userの場合は自分自身を予約者として扱う。
+ * リスト表示とカレンダー表示を切り替えて予約情報を確認できる。
  */
 export const ReservationListPage = () => {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [meetingRooms, setMeetingRooms] = useState<MeetingRoom[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("list");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
 
   const [userId, setUserId] = useState<number | "">("");
   const [meetingRoomId, setMeetingRoomId] = useState<number | "">("");
@@ -125,13 +130,103 @@ export const ReservationListPage = () => {
   };
 
   /**
-   * datetime-local の値をAPI送信用のISO文字列に変換する。
+   * 日時文字列を画面表示用に整形する。
    *
-   * @param value datetime-local入力値
-   * @returns API送信用日時文字列
+   * @param value 日時文字列
+   * @returns 表示用日時
    */
-  const toApiDateTime = (value: string) => {
-    return value;
+  const formatDateTime = (value: string) => {
+    return value.replace("T", " ");
+  };
+
+  /**
+   * 日付を YYYY-MM-DD 形式に変換する。
+   *
+   * @param date 変換対象の日付
+   * @returns YYYY-MM-DD形式の日付文字列
+   */
+  const formatDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  /**
+   * 予約開始日時から日付キーを取得する。
+   *
+   * @param reservation 予約情報
+   * @returns YYYY-MM-DD形式の日付文字列
+   */
+  const getReservationDateKey = (reservation: Reservation) => {
+    return reservation.start_at.slice(0, 10);
+  };
+
+  /**
+   * カレンダー表示用の日付配列を生成する。
+   *
+   * 月初の曜日に合わせて前方に空白日を追加し、
+   * 月末の曜日に合わせて後方にも空白日を追加する。
+   */
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+
+    const firstDate = new Date(year, month, 1);
+    const lastDate = new Date(year, month + 1, 0);
+
+    const firstDayOfWeek = firstDate.getDay();
+    const daysInMonth = lastDate.getDate();
+
+    const days: (Date | null)[] = [];
+
+    for (let index = 0; index < firstDayOfWeek; index += 1) {
+      days.push(null);
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      days.push(new Date(year, month, day));
+    }
+
+    while (days.length % 7 !== 0) {
+      days.push(null);
+    }
+
+    return days;
+  }, [calendarMonth]);
+
+  /**
+   * 表示中の月を1か月戻す。
+   */
+  const handlePreviousMonth = () => {
+    setCalendarMonth(
+      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1),
+    );
+  };
+
+  /**
+   * 表示中の月を1か月進める。
+   */
+  const handleNextMonth = () => {
+    setCalendarMonth(
+      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1),
+    );
+  };
+
+  /**
+   * 指定日付に紐づく予約一覧を取得する。
+   *
+   * @param date 対象日付
+   * @returns 対象日付の予約一覧
+   */
+  const getReservationsByDate = (date: Date) => {
+    const dateKey = formatDateKey(date);
+
+    return reservations.filter(
+      (reservation) =>
+        reservation.is_active && getReservationDateKey(reservation) === dateKey,
+    );
   };
 
   useEffect(() => {
@@ -161,8 +256,8 @@ export const ReservationListPage = () => {
         user_id: Number(userId),
         meeting_room_id: Number(meetingRoomId),
         title,
-        start_at: toApiDateTime(startAt),
-        end_at: toApiDateTime(endAt),
+        start_at: startAt,
+        end_at: endAt,
       });
 
       setSuccessMessage("予約を登録しました。");
@@ -184,6 +279,23 @@ export const ReservationListPage = () => {
             <p className="description">
               ログイン中: {currentUser?.name}（{currentUser?.role}）
             </p>
+          </div>
+
+          <div className="display-mode-buttons">
+            <button
+              type="button"
+              className={displayMode === "list" ? "" : "secondary"}
+              onClick={() => setDisplayMode("list")}
+            >
+              リスト表示
+            </button>
+            <button
+              type="button"
+              className={displayMode === "calendar" ? "" : "secondary"}
+              onClick={() => setDisplayMode("calendar")}
+            >
+              カレンダー表示
+            </button>
           </div>
         </div>
 
@@ -214,9 +326,7 @@ export const ReservationListPage = () => {
               会議室
               <select
                 value={meetingRoomId}
-                onChange={(event) =>
-                  setMeetingRoomId(Number(event.target.value))
-                }
+                onChange={(event) => setMeetingRoomId(Number(event.target.value))}
                 required
               >
                 {meetingRooms.map((meetingRoom) => (
@@ -263,32 +373,91 @@ export const ReservationListPage = () => {
           </div>
         </form>
 
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>タイトル</th>
-              <th>予約者</th>
-              <th>会議室</th>
-              <th>開始日時</th>
-              <th>終了日時</th>
-              <th>状態</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reservations.map((reservation) => (
-              <tr key={reservation.id}>
-                <td>{reservation.id}</td>
-                <td>{reservation.title}</td>
-                <td>{getUserName(reservation.user_id)}</td>
-                <td>{getMeetingRoomName(reservation.meeting_room_id)}</td>
-                <td>{reservation.start_at.replace("T", " ")}</td>
-                <td>{reservation.end_at.replace("T", " ")}</td>
-                <td>{reservation.is_active ? "有効" : "無効"}</td>
+        {displayMode === "list" && (
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>タイトル</th>
+                <th>予約者</th>
+                <th>会議室</th>
+                <th>開始日時</th>
+                <th>終了日時</th>
+                <th>状態</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reservations.map((reservation) => (
+                <tr key={reservation.id}>
+                  <td>{reservation.id}</td>
+                  <td>{reservation.title}</td>
+                  <td>{getUserName(reservation.user_id)}</td>
+                  <td>{getMeetingRoomName(reservation.meeting_room_id)}</td>
+                  <td>{formatDateTime(reservation.start_at)}</td>
+                  <td>{formatDateTime(reservation.end_at)}</td>
+                  <td>{reservation.is_active ? "有効" : "無効"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {displayMode === "calendar" && (
+          <div className="calendar-section">
+            <div className="calendar-header">
+              <button type="button" className="secondary" onClick={handlePreviousMonth}>
+                前月
+              </button>
+
+              <h2>
+                {calendarMonth.getFullYear()}年 {calendarMonth.getMonth() + 1}月
+              </h2>
+
+              <button type="button" className="secondary" onClick={handleNextMonth}>
+                次月
+              </button>
+            </div>
+
+            <div className="calendar-week-row">
+              <div>日</div>
+              <div>月</div>
+              <div>火</div>
+              <div>水</div>
+              <div>木</div>
+              <div>金</div>
+              <div>土</div>
+            </div>
+
+            <div className="calendar-grid">
+              {calendarDays.map((date, index) => {
+                if (!date) {
+                  return <div key={`empty-${index}`} className="calendar-day empty" />;
+                }
+
+                const dailyReservations = getReservationsByDate(date);
+
+                return (
+                  <div key={formatDateKey(date)} className="calendar-day">
+                    <div className="calendar-day-number">{date.getDate()}</div>
+
+                    <div className="calendar-reservations">
+                      {dailyReservations.map((reservation) => (
+                        <div key={reservation.id} className="calendar-reservation-card">
+                          <strong>{reservation.title}</strong>
+                          <span>
+                            {reservation.start_at.slice(11, 16)} -{" "}
+                            {reservation.end_at.slice(11, 16)}
+                          </span>
+                          <span>{getMeetingRoomName(reservation.meeting_room_id)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

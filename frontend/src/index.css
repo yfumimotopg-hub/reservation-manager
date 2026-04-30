@@ -212,3 +212,86 @@ select {
 .reservation-form-grid {
   grid-template-columns: 1fr 1fr 2fr 1fr 1fr;
 }
+
+.display-mode-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.calendar-section {
+  display: grid;
+  gap: 16px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar-header h2 {
+  margin: 0;
+}
+
+.calendar-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid #e5e7eb;
+  border-bottom: none;
+  background: #f9fafb;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendar-week-row div {
+  padding: 12px;
+  border-right: 1px solid #e5e7eb;
+}
+
+.calendar-week-row div:last-child {
+  border-right: none;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+}
+
+.calendar-day {
+  min-height: 140px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 8px;
+}
+
+.calendar-day.empty {
+  background: #f9fafb;
+}
+
+.calendar-day-number {
+  margin-bottom: 8px;
+  color: #475569;
+  font-weight: 700;
+}
+
+.calendar-reservations {
+  display: grid;
+  gap: 6px;
+}
+
+.calendar-reservation-card {
+  display: grid;
+  gap: 2px;
+  border-radius: 8px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.calendar-reservation-card strong {
+  font-size: 13px;
+}

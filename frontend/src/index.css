@@ -295,3 +295,16 @@ select {
 .calendar-reservation-card strong {
   font-size: 13px;
 }
+
+.calendar-danger-button {
+  width: fit-content;
+  margin-top: 4px;
+  border-radius: 6px;
+  background: #dc2626;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.calendar-danger-button:hover {
+  background: #b91c1c;
+}

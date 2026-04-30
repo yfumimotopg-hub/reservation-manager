@@ -217,31 +217,22 @@ Swagger UI からAPIを確認できます。
 
 ## テスト実行
 
+### バックエンドテスト
+
 ```bash
 docker compose exec backend pytest
 ```
 
-現在、以下の観点でテストを作成しています。
+### フロントエンドテスト
 
-- 会議室APIの正常系・異常系
-- users API の認可テスト
-- reservations API の業務ルールテスト
-- 未認証時の 401
-- 権限不足時の 403
-- 存在しないデータ指定時の 404
-- 重複登録・重複予約時の 409
-- 不正な入力値の 422
-- テストデータの後処理
+```bash
+docker compose exec frontend npm test
+```
 
 ## CI
 
-GitHub Actions により、`main` ブランチへの push および pull request 作成時にバックエンドテストを自動実行します。
+GitHub Actions により、`main` ブランチへの push および pull request 作成時に、バックエンドテストとフロントエンドテストを自動実行します。
 
-CIでは Docker Compose を使用して MySQL と FastAPI を起動し、バックエンドが起動完了したことを確認してから pytest を実行します。
-
-```bash
-docker compose exec -T backend pytest
-```
 
 ## 今後の改善予定
 

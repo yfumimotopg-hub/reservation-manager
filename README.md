@@ -2,8 +2,8 @@
 
 FastAPI / React / TypeScript を使用した、会議室予約管理システムのポートフォリオです。
 
-現在はバックエンドAPIを中心に実装しています。  
-業務システムを想定し、ユーザー管理、会議室管理、予約管理、認証・認可、予約時間の重複チェック、テストを実装しています。
+バックエンドAPIとフロントエンド画面を実装しています。  
+業務システムを想定し、ユーザー管理、会議室管理、予約管理、認証・認可、予約時間の重複チェック、テスト、Reactによる画面操作を実装しています。
 
 ## 作成目的
 
@@ -23,6 +23,15 @@ FastAPI / React / TypeScript を使用した、会議室予約管理システム
 - passlib / bcrypt
 - pytest
 - httpx
+
+### フロントエンド
+
+- React
+- TypeScript
+- Vite
+- React Router
+- Axios
+- CSS
 
 ### インフラ / 開発環境
 
@@ -84,7 +93,11 @@ FastAPI / React / TypeScript を使用した、会議室予約管理システム
 | 会議室一覧取得 | ○ | ○ |
 | 会議室詳細取得 | ○ | ○ |
 | 会議室登録・更新・無効化 | ○ | × |
-| 予約操作 | ○ | ○ |
+| 予約一覧取得 | ○ | ○ |
+| 予約詳細取得 | ○ | ○ |
+| 予約登録 | ○ | ○ |
+| 自分の予約更新・無効化 | ○ | ○ |
+| 他人の予約更新・無効化 | ○ | × |
 
 ## ディレクトリ構成
 
@@ -106,7 +119,39 @@ backend/
 ├── Dockerfile
 ├── pytest.ini
 └── requirements.txt
+
+frontend/
+├── src/
+│   ├── api/
+│   ├── components/
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── meetingRooms/
+│   │   └── reservations/
+│   ├── routes/
+│   ├── types/
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── Dockerfile
+├── package.json
+└── vite.config.ts
 ```
+
+### フロントエンド
+
+- ログイン画面
+- JWTアクセストークンの保存
+- ログイン後の画面遷移
+- 会議室一覧表示
+- admin向けの会議室登録・更新・無効化
+- user向けの会議室参照
+- 予約一覧表示
+- 予約登録
+- 予約のリスト表示 / カレンダー表示切り替え
+- 予約の月別カレンダー表示
+- 予約の無効化
+- 権限に応じた操作ボタンの表示制御
 
 ## 認証・認可について
 
@@ -161,8 +206,14 @@ cd reservation-manager
 docker compose up --build
 ```
 
-### 3. API確認
+### 3. 画面確認
 
+フロントエンド画面：
+```text
+http://localhost:5173
+```
+
+Swagger UI：
 ```text
 http://localhost:8000/docs
 ```
@@ -237,9 +288,9 @@ docker compose exec backend pytest
 
 ## 今後の改善予定
 
-- React / TypeScript によるフロントエンド実装
 - Alembic によるマイグレーション管理
 - エラーレスポンス形式の統一
 - 予約一覧の検索・日付絞り込み
-- admin は全予約、user は自分の予約のみ操作可能にする制御
+- 予約の更新画面
+- カレンダーの日付クリックによる予約フォーム自動入力
 - GitHub Actions による自動テスト

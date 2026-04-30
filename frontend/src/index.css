@@ -128,3 +128,74 @@ th {
   align-items: center;
   gap: 16px;
 }
+
+.success {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.room-form {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  padding: 20px;
+}
+
+.room-form h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.button-row {
+  display: flex;
+  gap: 12px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+button.secondary {
+  background: #64748b;
+}
+
+button.secondary:hover {
+  background: #475569;
+}
+
+button.danger {
+  background: #dc2626;
+}
+
+button.danger:hover {
+  background: #b91c1c;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

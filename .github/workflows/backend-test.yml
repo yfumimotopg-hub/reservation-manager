@@ -17,6 +17,22 @@ jobs:
       - name: Build and start containers
         run: docker compose up -d --build db backend
 
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/api/v1/database/health; then
+              echo "Backend is ready"
+              exit 0
+            fi
+
+            echo "Waiting for backend..."
+            sleep 2
+          done
+
+          echo "Backend did not become ready"
+          docker compose logs backend
+          exit 1
+
       - name: Run backend tests
         run: docker compose exec -T backend pytest
 

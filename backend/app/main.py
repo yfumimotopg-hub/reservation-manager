@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -56,12 +57,23 @@ def create_app() -> FastAPI:
     """
     FastAPIアプリケーションを生成する。
 
-    lifespanを設定し、ルーティングなどアプリケーション起動時に必要な初期設定を行う。
+    lifespanを設定し、CORS、ルーティングなどアプリケーション起動時に
+    必要な初期設定を行う。
     """
     app = FastAPI(
         title=settings.APP_NAME,
         version=settings.API_VERSION,
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     app.include_router(api_router)

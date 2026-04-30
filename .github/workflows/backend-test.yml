@@ -1,0 +1,29 @@
+name: Backend Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and start containers
+        run: docker compose up -d --build db backend
+
+      - name: Run backend tests
+        run: docker compose exec -T backend pytest
+
+      - name: Show backend logs on failure
+        if: failure()
+        run: docker compose logs backend
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v

@@ -317,3 +317,22 @@ select {
 .user-form-grid {
   grid-template-columns: 1.5fr 2fr 1fr 1fr;
 }
+
+.calendar-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.calendar-secondary-button {
+  width: fit-content;
+  border-radius: 6px;
+  background: #64748b;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.calendar-secondary-button:hover {
+  background: #475569;
+}

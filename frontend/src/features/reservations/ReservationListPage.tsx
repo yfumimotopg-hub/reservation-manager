@@ -6,6 +6,7 @@ import {
   createReservation,
   deactivateReservation,
   fetchReservations,
+  updateReservation,
 } from "../../api/reservationApi";
 import { fetchUsers } from "../../api/userApi";
 import type { CurrentUser } from "../../types/auth";
@@ -37,6 +38,9 @@ export const ReservationListPage = () => {
   const [title, setTitle] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+
+  const [selectedReservation, setSelectedReservation] =
+  useState<Reservation | null>(null);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -108,11 +112,20 @@ export const ReservationListPage = () => {
    * 予約登録フォームを初期化する。
    */
   const resetForm = () => {
+    setSelectedReservation(null);
     setTitle("");
     setStartAt("");
     setEndAt("");
-  };
 
+    if (currentUser?.role === "admin") {
+      setUserId(users[0]?.id ?? "");
+    } else {
+      setUserId(currentUser?.id ?? "");
+    }
+
+    setMeetingRoomId(meetingRooms[0]?.id ?? "");
+  };
+  
   /**
    * ユーザーIDからユーザー名を取得する。
    *
@@ -261,9 +274,46 @@ export const ReservationListPage = () => {
   };
 
   /**
-   * 予約登録フォーム送信時の処理。
+   * ログイン中ユーザーが指定された予約を更新できるか判定する。
    *
-   * 入力された予約者、会議室、時間帯をもとに予約登録APIを呼び出す。
+   * admin は全予約を更新できる。
+   * user は自分の予約のみ更新できる。
+   *
+   * @param reservation 判定対象の予約
+   * @returns 更新可能な場合は true
+   */
+  const canUpdateReservation = (reservation: Reservation) => {
+    if (!reservation.is_active) {
+      return false;
+    }
+
+    if (currentUser?.role === "admin") {
+      return true;
+    }
+
+    return reservation.user_id === currentUser?.id;
+  };
+
+  /**
+   * 更新対象の予約をフォームに反映する。
+   *
+   * @param reservation 編集対象の予約
+   */
+  const handleEditReservation = (reservation: Reservation) => {
+    setSelectedReservation(reservation);
+    setUserId(reservation.user_id);
+    setMeetingRoomId(reservation.meeting_room_id);
+    setTitle(reservation.title);
+    setStartAt(reservation.start_at.slice(0, 16));
+    setEndAt(reservation.end_at.slice(0, 16));
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
+
+  /**
+   * 予約登録・更新フォーム送信時の処理。
+   *
+   * 編集対象の予約がある場合は更新、ない場合は新規登録を行う。
    * 時間重複などの業務エラーは画面上に表示する。
    *
    * @param event フォーム送信イベント
@@ -279,20 +329,34 @@ export const ReservationListPage = () => {
     }
 
     try {
-      await createReservation({
-        user_id: Number(userId),
-        meeting_room_id: Number(meetingRoomId),
-        title,
-        start_at: startAt,
-        end_at: endAt,
-      });
+      if (selectedReservation) {
+        await updateReservation(selectedReservation.id, {
+          user_id: Number(userId),
+          meeting_room_id: Number(meetingRoomId),
+          title,
+          start_at: startAt,
+          end_at: endAt,
+          is_active: selectedReservation.is_active,
+        });
 
-      setSuccessMessage("予約を登録しました。");
+        setSuccessMessage("予約を更新しました。");
+      } else {
+        await createReservation({
+          user_id: Number(userId),
+          meeting_room_id: Number(meetingRoomId),
+          title,
+          start_at: startAt,
+          end_at: endAt,
+        });
+
+        setSuccessMessage("予約を登録しました。");
+      }
+
       resetForm();
       await reloadReservations();
     } catch {
       setErrorMessage(
-        "予約の登録に失敗しました。予約時間が重複している可能性があります。",
+        "予約の保存に失敗しました。予約時間が重複している可能性があります。",
       );
     }
   };
@@ -357,7 +421,7 @@ export const ReservationListPage = () => {
         {successMessage && <p className="success">{successMessage}</p>}
 
         <form onSubmit={handleSubmit} className="room-form">
-          <h2>予約登録</h2>
+          <h2>{selectedReservation ? "予約更新" : "予約登録"}</h2>
 
           <div className="form-grid reservation-form-grid">
             <label>
@@ -423,7 +487,15 @@ export const ReservationListPage = () => {
           </div>
 
           <div className="button-row">
-            <button type="submit">予約する</button>
+            <button type="submit">
+              {selectedReservation ? "更新する" : "予約する"}
+            </button>
+
+            {selectedReservation && (
+              <button type="button" className="secondary" onClick={resetForm}>
+                キャンセル
+              </button>
+            )}
           </div>
         </form>
 
@@ -452,17 +524,29 @@ export const ReservationListPage = () => {
                   <td>{formatDateTime(reservation.end_at)}</td>
                   <td>{reservation.is_active ? "有効" : "無効"}</td>
                   <td>
-                    {canDeactivateReservation(reservation) ? (
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() => handleDeactivateReservation(reservation.id)}
-                      >
-                        無効化
-                      </button>
-                    ) : (
-                      <span className="muted-text">操作不可</span>
-                    )}
+                    <div className="table-actions">
+                      {canUpdateReservation(reservation) && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => handleEditReservation(reservation)}
+                        >
+                          編集
+                        </button>
+                      )}
+
+                      {canDeactivateReservation(reservation) ? (
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => handleDeactivateReservation(reservation.id)}
+                        >
+                          無効化
+                        </button>
+                      ) : (
+                        <span className="muted-text">操作不可</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -517,15 +601,28 @@ export const ReservationListPage = () => {
                             {reservation.end_at.slice(11, 16)}
                           </span>
                           <span>{getMeetingRoomName(reservation.meeting_room_id)}</span>
-                          {canDeactivateReservation(reservation) && (
-                            <button
-                              type="button"
-                              className="calendar-danger-button"
-                              onClick={() => handleDeactivateReservation(reservation.id)}
-                            >
-                              無効化
-                            </button>
-                          )}
+
+                          <div className="calendar-card-actions">
+                            {canUpdateReservation(reservation) && (
+                              <button
+                                type="button"
+                                className="calendar-secondary-button"
+                                onClick={() => handleEditReservation(reservation)}
+                              >
+                                編集
+                              </button>
+                            )}
+
+                            {canDeactivateReservation(reservation) && (
+                              <button
+                                type="button"
+                                className="calendar-danger-button"
+                                onClick={() => handleDeactivateReservation(reservation.id)}
+                              >
+                                無効化
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

@@ -2,6 +2,7 @@ import { apiClient } from "./client";
 import type {
   Reservation,
   ReservationCreateRequest,
+  ReservationUpdateRequest,
 } from "../types/reservation";
 
 /**
@@ -28,6 +29,27 @@ export const createReservation = async (
   request: ReservationCreateRequest,
 ): Promise<Reservation> => {
   const response = await apiClient.post<Reservation>("/reservations", request);
+  return response.data;
+};
+
+/**
+ * 予約更新APIを呼び出す。
+ *
+ * 指定した予約IDの予約内容を更新する。
+ *
+ * @param reservationId 更新対象の予約ID
+ * @param request 予約更新リクエスト
+ * @returns 更新後の予約情報
+ */
+export const updateReservation = async (
+  reservationId: number,
+  request: ReservationUpdateRequest,
+): Promise<Reservation> => {
+  const response = await apiClient.put<Reservation>(
+    `/reservations/${reservationId}`,
+    request,
+  );
+
   return response.data;
 };
 

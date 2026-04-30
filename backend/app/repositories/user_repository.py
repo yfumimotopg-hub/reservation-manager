@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 
@@ -17,12 +18,6 @@ class UserRepository:
     async def find_all(db: AsyncSession) -> list[User]:
         """
         登録されている全ユーザーを非同期で取得する。
-
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-
-        Returns:
-            ユーザー情報の一覧。
         """
         result = await db.execute(
             select(User).order_by(User.id)
@@ -33,13 +28,6 @@ class UserRepository:
     async def find_by_id(db: AsyncSession, user_id: int) -> User | None:
         """
         ユーザーIDを条件にユーザーを1件非同期で取得する。
-
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-            user_id: 検索対象のユーザーID。
-
-        Returns:
-            該当するユーザー。存在しない場合はNone。
         """
         result = await db.execute(
             select(User).where(User.id == user_id)
@@ -50,13 +38,6 @@ class UserRepository:
     async def find_by_email(db: AsyncSession, email: str) -> User | None:
         """
         メールアドレスを条件にユーザーを1件非同期で取得する。
-
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-            email: 検索対象のメールアドレス。
-
-        Returns:
-            該当するユーザー。存在しない場合はNone。
         """
         result = await db.execute(
             select(User).where(User.email == email)
@@ -71,16 +52,13 @@ class UserRepository:
         """
         新規ユーザーを非同期で登録する。
 
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-            user_create: ユーザー登録リクエスト。
-
-        Returns:
-            登録されたユーザー情報。
+        初期パスワードは仮で password に設定する。
+        後続対応でユーザー作成時にパスワードを受け取る形へ変更する想定。
         """
         user = User(
             name=user_create.name,
             email=user_create.email,
+            password_hash=hash_password("password"),
             role=user_create.role,
             is_active=True,
         )
@@ -99,14 +77,6 @@ class UserRepository:
     ) -> User:
         """
         既存ユーザー情報を非同期で更新する。
-
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-            user: 更新対象のユーザー。
-            user_update: ユーザー更新リクエスト。
-
-        Returns:
-            更新後のユーザー情報。
         """
         user.name = user_update.name
         user.email = user_update.email
@@ -122,16 +92,6 @@ class UserRepository:
     async def deactivate(db: AsyncSession, user: User) -> User:
         """
         ユーザーを非同期で無効化する。
-
-        物理削除は行わず、is_activeをFalseに更新することで
-        過去データとの紐づきを維持する。
-
-        Args:
-            db: SQLAlchemyの非同期DBセッション。
-            user: 無効化対象のユーザー。
-
-        Returns:
-            無効化後のユーザー情報。
         """
         user.is_active = False
 
@@ -157,12 +117,14 @@ class UserRepository:
             User(
                 name="Admin User",
                 email="admin@example.com",
+                password_hash=hash_password("password"),
                 role="admin",
                 is_active=True,
             ),
             User(
                 name="General User",
                 email="user@example.com",
+                password_hash=hash_password("password"),
                 role="user",
                 is_active=True,
             ),

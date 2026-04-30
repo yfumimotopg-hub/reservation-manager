@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     """
     アプリケーション全体で使用する設定値を管理するクラス。
 
-    環境変数からDB接続情報やAPIの基本設定を読み込み、
+    環境変数からDB接続情報、API設定、JWT認証設定を読み込み、
     アプリケーション内で共通して参照できるようにする。
     """
 
@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     DB_NAME: str = "reservation"
     DB_USER: str = "app_user"
     DB_PASSWORD: str = "app_password"
+
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     @property
     def database_url(self) -> str:

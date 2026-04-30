@@ -1,6 +1,13 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import database, health, meeting_rooms, reservations, users
+from app.api.v1.endpoints import (
+    auth,
+    database,
+    health,
+    meeting_rooms,
+    reservations,
+    users,
+)
 
 router = APIRouter()
 
@@ -14,6 +21,12 @@ router.include_router(
     database.router,
     prefix="/database",
     tags=["database"],
+)
+
+router.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["auth"],
 )
 
 router.include_router(

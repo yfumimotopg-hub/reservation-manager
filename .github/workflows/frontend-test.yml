@@ -1,0 +1,21 @@
+name: Frontend Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build frontend container
+        run: docker compose build frontend
+
+      - name: Run frontend tests
+        run: docker compose run --rm frontend npm test

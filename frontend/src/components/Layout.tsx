@@ -27,6 +27,7 @@ export const Layout = () => {
 
         <nav className="nav">
           <Link to="/meeting-rooms">会議室一覧</Link>
+          <Link to="/reservations">予約一覧</Link>
           <button type="button" onClick={handleLogout}>
             ログアウト
           </button>

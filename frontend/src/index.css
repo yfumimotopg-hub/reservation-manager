@@ -308,3 +308,8 @@ select {
 .calendar-danger-button:hover {
   background: #b91c1c;
 }
+
+.muted-text {
+  color: #94a3b8;
+  font-size: 14px;
+}

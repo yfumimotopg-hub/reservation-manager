@@ -240,6 +240,27 @@ export const ReservationListPage = () => {
   }, []);
 
   /**
+   * ログイン中ユーザーが指定された予約を無効化できるか判定する。
+   *
+   * admin は全予約を無効化できる。
+   * user は自分の予約のみ無効化できる。
+   *
+   * @param reservation 判定対象の予約
+   * @returns 無効化可能な場合は true
+   */
+  const canDeactivateReservation = (reservation: Reservation) => {
+    if (!reservation.is_active) {
+      return false;
+    }
+
+    if (currentUser?.role === "admin") {
+      return true;
+    }
+
+    return reservation.user_id === currentUser?.id;
+  };
+
+  /**
    * 予約登録フォーム送信時の処理。
    *
    * 入力された予約者、会議室、時間帯をもとに予約登録APIを呼び出す。
@@ -431,14 +452,17 @@ export const ReservationListPage = () => {
                   <td>{formatDateTime(reservation.end_at)}</td>
                   <td>{reservation.is_active ? "有効" : "無効"}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="danger"
-                      onClick={() => handleDeactivateReservation(reservation.id)}
-                      disabled={!reservation.is_active}
-                    >
-                      無効化
-                    </button>
+                    {canDeactivateReservation(reservation) ? (
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => handleDeactivateReservation(reservation.id)}
+                      >
+                        無効化
+                      </button>
+                    ) : (
+                      <span className="muted-text">操作不可</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -493,14 +517,15 @@ export const ReservationListPage = () => {
                             {reservation.end_at.slice(11, 16)}
                           </span>
                           <span>{getMeetingRoomName(reservation.meeting_room_id)}</span>
-
-                          <button
-                            type="button"
-                            className="calendar-danger-button"
-                            onClick={() => handleDeactivateReservation(reservation.id)}
-                          >
-                            無効化
-                          </button>
+                          {canDeactivateReservation(reservation) && (
+                            <button
+                              type="button"
+                              className="calendar-danger-button"
+                              onClick={() => handleDeactivateReservation(reservation.id)}
+                            >
+                              無効化
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

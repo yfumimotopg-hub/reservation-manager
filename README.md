@@ -99,51 +99,15 @@ FastAPI / React / TypeScript を使用した、会議室予約管理システム
 | 自分の予約更新・無効化 | ○ | ○ |
 | 他人の予約更新・無効化 | ○ | × |
 
-## ディレクトリ構成
-
-```text
-backend/
-├── app/
-│   ├── api/
-│   │   ├── dependencies/
-│   │   └── v1/
-│   │       └── endpoints/
-│   ├── core/
-│   ├── db/
-│   ├── models/
-│   ├── repositories/
-│   ├── schemas/
-│   ├── services/
-│   └── main.py
-├── tests/
-├── Dockerfile
-├── pytest.ini
-└── requirements.txt
-
-frontend/
-├── src/
-│   ├── api/
-│   ├── components/
-│   ├── features/
-│   │   ├── auth/
-│   │   ├── meetingRooms/
-│   │   └── reservations/
-│   ├── routes/
-│   ├── types/
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── index.css
-├── Dockerfile
-├── package.json
-└── vite.config.ts
-```
-
 ### フロントエンド
 
 - ログイン画面
 - JWTアクセストークンの保存
 - ログイン後の画面遷移
 - 会議室一覧表示
+- ユーザー管理画面
+- admin向けのユーザー一覧・登録・更新・無効化
+- user向けのユーザー管理画面へのアクセス制御
 - admin向けの会議室登録・更新・無効化
 - user向けの会議室参照
 - 予約一覧表示
@@ -151,6 +115,7 @@ frontend/
 - 予約のリスト表示 / カレンダー表示切り替え
 - 予約の月別カレンダー表示
 - 予約の無効化
+- 予約更新
 - 権限に応じた操作ボタンの表示制御
 
 ## 認証・認可について
@@ -283,5 +248,4 @@ docker compose exec -T backend pytest
 - Alembic によるマイグレーション管理
 - エラーレスポンス形式の統一
 - 予約一覧の検索・日付絞り込み
-- 予約の更新画面
 - カレンダーの日付クリックによる予約フォーム自動入力

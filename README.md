@@ -286,6 +286,16 @@ docker compose exec backend pytest
 - 不正な入力値の 422
 - テストデータの後処理
 
+## CI
+
+GitHub Actions により、`main` ブランチへの push および pull request 作成時にバックエンドテストを自動実行します。
+
+CIでは Docker Compose を使用して MySQL と FastAPI を起動し、バックエンドが起動完了したことを確認してから pytest を実行します。
+
+```bash
+docker compose exec -T backend pytest
+```
+
 ## 今後の改善予定
 
 - Alembic によるマイグレーション管理
